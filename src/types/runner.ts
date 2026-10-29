@@ -77,3 +77,28 @@ export interface BlockingItem {
   fix: string;
   verified: boolean;
 }
+
+export interface SimulationRunRecord {
+  id: string;
+  timestamp: number;
+  order: string;
+  profile: 'default' | 'strict' | 'yolo';
+  mode: 'step' | 'solve_loop' | 'constraint_loop';
+  success: boolean;
+  durationMs: number;
+  toolCallsCount: number;
+  toolsUsed: string[];
+  tokens: {
+    prompt: number;
+    completion: number;
+    total: number;
+  };
+  memoryEntriesCount: number;
+  resourceUsage: {
+    cpuPercent: number;
+    memoryKb: number;
+  };
+  crystallized: boolean;
+  failureReason?: string;
+}
+

@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { SimulatedRunner, getDefaultConfig, ERROR_PREFIXES } from '../engine/simulationEngine';
-import { Skill, ExecutionTrace, RunnerConfig } from '../types/runner';
+import { Skill, ExecutionTrace, RunnerConfig, SimulationRunRecord } from '../types/runner';
 import { Play, RotateCcw, ShieldAlert, Sparkles, Terminal, CheckCircle2, XCircle, ArrowRight, ShieldCheck, UserCheck, Code2, AlertTriangle } from 'lucide-react';
 
 interface SimulatorPlaygroundProps {
   skills: Skill[];
   onSkillCrystallized: (skill: Skill) => void;
+  onSimulationComplete?: (run: SimulationRunRecord) => void;
 }
 
-export const SimulatorPlayground: React.FC<SimulatorPlaygroundProps> = ({ skills, onSkillCrystallized }) => {
+export const SimulatorPlayground: React.FC<SimulatorPlaygroundProps> = ({ skills, onSkillCrystallized, onSimulationComplete }) => {
   const [profile, setProfile] = useState<'default' | 'strict' | 'yolo'>('default');
   const [order, setOrder] = useState<string>("Inspect system hostname and list configuration files");
   const [executionMode, setExecutionMode] = useState<'step' | 'solve_loop' | 'constraint_loop'>('step');
@@ -82,6 +83,7 @@ export const SimulatorPlayground: React.FC<SimulatorPlaygroundProps> = ({ skills
   const handleRunExecution = async () => {
     setIsRunning(true);
     setExecutionLog(null);
+    const startTimestamp = performance.now();
 
     const cfg: RunnerConfig = getDefaultConfig();
     cfg.safety.mode = profile;
@@ -99,6 +101,11 @@ export const SimulatorPlayground: React.FC<SimulatorPlaygroundProps> = ({ skills
     const activePreset = presets.find(p => p.id === presetScenario);
     const scenario = activePreset?.scenario;
 
+    let finalTrace: ExecutionTrace | null = null;
+    let finalSuccess = false;
+    let rawOutput = "";
+    let isCrystallized = false;
+
     if (executionMode === 'step') {
       const stepTrace = runner.tracker.start(order);
       const rawText = runner._stepOnce(order, runner.tracker, { customScenario: scenario });
@@ -109,11 +116,16 @@ export const SimulatorPlayground: React.FC<SimulatorPlaygroundProps> = ({ skills
       if (runner._shouldCrystallize(finishedTrace)) {
         newSkill = runner._crystallizeSkill(finishedTrace!);
         onSkillCrystallized(newSkill);
+        isCrystallized = true;
       }
+
+      finalTrace = finishedTrace;
+      finalSuccess = success;
+      rawOutput = rawText || "NO OUTPUT";
 
       setExecutionLog({
         order,
-        finalText: rawText || "NO OUTPUT",
+        finalText: rawOutput,
         trace: finishedTrace,
         successGatePassed: success,
         crystallizedSkill: newSkill
@@ -153,6 +165,7 @@ export const SimulatorPlayground: React.FC<SimulatorPlaygroundProps> = ({ skills
           if (runner._shouldCrystallize(finishedTrace)) {
             newSkill = runner._crystallizeSkill(finishedTrace!);
             onSkillCrystallized(newSkill);
+            isCrystallized = true;
           }
           break;
         }
@@ -160,11 +173,15 @@ export const SimulatorPlayground: React.FC<SimulatorPlaygroundProps> = ({ skills
       }
 
       const lastAttempt = attempts[attempts.length - 1];
+      finalTrace = lastAttempt?.trace || null;
+      finalSuccess = lastAttempt?.success || false;
+      rawOutput = finalResult;
+
       setExecutionLog({
         order,
         finalText: finalResult,
-        trace: lastAttempt?.trace || null,
-        successGatePassed: lastAttempt?.success || false,
+        trace: finalTrace,
+        successGatePassed: finalSuccess,
         crystallizedSkill: newSkill,
         loopAttempts: attempts
       });
@@ -181,14 +198,50 @@ export const SimulatorPlayground: React.FC<SimulatorPlaygroundProps> = ({ skills
       if (runner._shouldCrystallize(finishedTrace)) {
         newSkill = runner._crystallizeSkill(finishedTrace!);
         onSkillCrystallized(newSkill);
+        isCrystallized = true;
       }
+
+      finalTrace = finishedTrace;
+      finalSuccess = success;
+      rawOutput = violations.length > 0 ? `CONSTRAINT VIOLATION: missing [${violations.join(', ')}] in output` : res;
 
       setExecutionLog({
         order,
-        finalText: violations.length > 0 ? `CONSTRAINT VIOLATION: missing [${violations.join(', ')}] in output` : res,
+        finalText: rawOutput,
         trace: finishedTrace,
         successGatePassed: success,
         crystallizedSkill: newSkill
+      });
+    }
+
+    const durationMs = Math.round(performance.now() - startTimestamp) + (finalTrace ? finalTrace.steps.length * 40 + 75 : 85);
+    const toolsUsed = finalTrace ? finalTrace.steps.map(s => s.tool) : [];
+    const promptTokens = 350 + order.length * 4;
+    const completionTokens = finalSuccess ? 120 + rawOutput.length * 2 : 25;
+
+    if (onSimulationComplete) {
+      onSimulationComplete({
+        id: `run-${Date.now().toString().slice(-4)}`,
+        timestamp: Date.now(),
+        order,
+        profile,
+        mode: executionMode,
+        success: finalSuccess,
+        durationMs,
+        toolCallsCount: toolsUsed.length,
+        toolsUsed,
+        tokens: {
+          prompt: promptTokens,
+          completion: completionTokens,
+          total: promptTokens + completionTokens
+        },
+        memoryEntriesCount: toolsUsed.length * 2 + 4,
+        resourceUsage: {
+          cpuPercent: +(Math.random() * 15 + (toolsUsed.length * 6) + 12).toFixed(1),
+          memoryKb: Math.floor(Math.random() * 400) + 1100 + (toolsUsed.length * 150)
+        },
+        crystallized: isCrystallized,
+        failureReason: !finalSuccess ? (rawOutput.startsWith("TOOL") ? rawOutput : "Gate rejection or error prefix") : undefined
       });
     }
 

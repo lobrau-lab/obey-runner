@@ -1,7 +1,7 @@
 import React from 'react';
-import { ShieldCheck, Cpu, Terminal, FileCode2, Sparkles, Network, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, Cpu, Terminal, FileCode2, Sparkles, Network, CheckCircle2, AlertTriangle, BarChart3 } from 'lucide-react';
 
-export type TabId = 'audit' | 'simulator' | 'verification' | 'code' | 'skills' | 'api';
+export type TabId = 'dashboard' | 'audit' | 'simulator' | 'verification' | 'code' | 'skills' | 'api';
 
 interface HeaderProps {
   activeTab: TabId;
@@ -52,6 +52,18 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange, skillsCo
 
         {/* Tab Navigation */}
         <div className="flex overflow-x-auto gap-1 mt-4 pt-2 border-t border-slate-800/80 scrollbar-none">
+          <button
+            onClick={() => onTabChange('dashboard')}
+            className={`flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-lg transition-all ${
+              activeTab === 'dashboard'
+                ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/30'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            Metrics Dashboard
+          </button>
+
           <button
             onClick={() => onTabChange('audit')}
             className={`flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-lg transition-all ${

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Header, TabId } from './components/Header';
+import { DashboardView } from './components/DashboardView';
 import { PatchAuditView } from './components/PatchAuditView';
 import { SimulatorPlayground } from './components/SimulatorPlayground';
 import { VerificationSuiteView } from './components/VerificationSuiteView';
@@ -7,12 +8,14 @@ import { CodeExplorerView } from './components/CodeExplorerView';
 import { SkillStoreView } from './components/SkillStoreView';
 import { ApiTesterView } from './components/ApiTesterView';
 import { INITIAL_SKILLS } from './engine/simulationEngine';
-import { Skill } from './types/runner';
+import { INITIAL_SIMULATION_RUNS } from './data/simulationMetrics';
+import { Skill, SimulationRunRecord } from './types/runner';
 import { ShieldCheck, Cpu, GitPullRequest, CheckCircle2 } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<TabId>('audit');
+  const [activeTab, setActiveTab] = useState<TabId>('dashboard');
   const [skills, setSkills] = useState<Skill[]>(INITIAL_SKILLS);
+  const [runs, setRuns] = useState<SimulationRunRecord[]>(INITIAL_SIMULATION_RUNS);
 
   const handleSkillCrystallized = (newSkill: Skill) => {
     setSkills(prev => [newSkill, ...prev]);
@@ -26,6 +29,18 @@ export default function App() {
     setSkills(INITIAL_SKILLS);
   };
 
+  const handleSimulationComplete = (newRun: SimulationRunRecord) => {
+    setRuns(prev => [newRun, ...prev]);
+  };
+
+  const handleAddBatchRuns = (newBatch: SimulationRunRecord[]) => {
+    setRuns(prev => [...newBatch, ...prev]);
+  };
+
+  const handleResetRuns = () => {
+    setRuns(INITIAL_SIMULATION_RUNS);
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
       {/* Top Application Header */}
@@ -37,12 +52,21 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {activeTab === 'dashboard' && (
+          <DashboardView
+            runs={runs}
+            onAddBatchRuns={handleAddBatchRuns}
+            onResetRuns={handleResetRuns}
+          />
+        )}
+
         {activeTab === 'audit' && <PatchAuditView />}
 
         {activeTab === 'simulator' && (
           <SimulatorPlayground
             skills={skills}
             onSkillCrystallized={handleSkillCrystallized}
+            onSimulationComplete={handleSimulationComplete}
           />
         )}
 
