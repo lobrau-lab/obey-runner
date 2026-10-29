@@ -1,0 +1,6 @@
+{
+  "name": "OBEY-RUNNER Patch 4 & Agent Engine Studio",
+  "description": "Interactive workbench, verification test runner, and patch review suite for OBEY-RUNNER autonomous agent architecture.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
